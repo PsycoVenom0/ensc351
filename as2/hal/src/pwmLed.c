@@ -1,43 +1,80 @@
+// hal/src/pwmLed.c
+#define _GNU_SOURCE
 #include "hal/pwmLed.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
+#include <pthread.h>
 
-#define PWM_PATH "/sys/class/pwm/pwmchip0"
-#define PWM_CHANNEL 0
-#define PWM_PERIOD_NS 20000000 // 20 ms period (50 Hz)
+#ifndef PWM_SYS_DIR
+#define PWM_SYS_DIR "/dev/hat/pwm/GPIO12/"  /* Default path per PWM guide */
+#endif
 
-static char pwm_dir[128];
+#define PWM_MAX_HZ 500
+#define PWM_DEFAULT_HZ 10
 
-void PWM_init(void) {
-    FILE *f;
-    snprintf(pwm_dir, sizeof(pwm_dir), "%s/pwm%d", PWM_PATH, PWM_CHANNEL);
-    if (access(pwm_dir, F_OK) != 0) {
-        f = fopen(PWM_PATH "/export", "w");
-        if (f) { fprintf(f, "%d", PWM_CHANNEL); fclose(f); usleep(100000); }
-    }
+static pthread_mutex_t pwm_lock = PTHREAD_MUTEX_INITIALIZER;
+static int current_hz = PWM_DEFAULT_HZ;
+
+static int write_int(const char *name, long long value) {
     char path[256];
-    snprintf(path, sizeof(path), "%s/period", pwm_dir);
-    f = fopen(path, "w");
-    if (f) { fprintf(f, "%d", PWM_PERIOD_NS); fclose(f); }
-
-    snprintf(path, sizeof(path), "%s/enable", pwm_dir);
-    f = fopen(path, "w");
-    if (f) { fprintf(f, "1"); fclose(f); }
+    snprintf(path, sizeof(path), "%s%s", PWM_SYS_DIR, name);
+    FILE *f = fopen(path, "w");
+    if (!f) return -1;
+    fprintf(f, "%lld\n", value);
+    fclose(f);
+    return 0;
 }
 
-void PWM_setDutyCycle(double dutyPercent) {
-    if (dutyPercent < 0) dutyPercent = 0;
-    if (dutyPercent > 100) dutyPercent = 100;
-    int duty = (int)(PWM_PERIOD_NS * (dutyPercent / 100.0));
-
-    char path[256];
-    snprintf(path, sizeof(path), "%s/duty_cycle", pwm_dir);
-    FILE *f = fopen(path, "w");
-    if (f) { fprintf(f, "%d", duty); fclose(f); }
+void PWM_init(void) {
+    pthread_mutex_lock(&pwm_lock);
+    write_int("duty_cycle", 0);
+    if (current_hz <= 0) current_hz = PWM_DEFAULT_HZ;
+    long long period_ns = 1000000000LL / current_hz;
+    write_int("period", period_ns);
+    write_int("duty_cycle", period_ns / 2);
+    write_int("enable", 1);
+    pthread_mutex_unlock(&pwm_lock);
 }
 
 void PWM_cleanup(void) {
-    FILE *f = fopen(PWM_PATH "/unexport", "w");
-    if (f) { fprintf(f, "%d", PWM_CHANNEL); fclose(f); }
+    pthread_mutex_lock(&pwm_lock);
+    write_int("enable", 0);
+    pthread_mutex_unlock(&pwm_lock);
+}
+
+int PWM_set_frequency(int hz) {
+    if (hz < 0) hz = 0;
+    if (hz > PWM_MAX_HZ) hz = PWM_MAX_HZ;
+
+    pthread_mutex_lock(&pwm_lock);
+    if (hz == current_hz) {
+        pthread_mutex_unlock(&pwm_lock);
+        return 0;
+    }
+
+    if (hz == 0) {
+        write_int("enable", 0);
+        current_hz = 0;
+        pthread_mutex_unlock(&pwm_lock);
+        return 0;
+    }
+
+    long long period_ns = 1000000000LL / hz;
+    write_int("duty_cycle", 0);
+    write_int("period", period_ns);
+    write_int("duty_cycle", period_ns / 2);
+    write_int("enable", 1);
+
+    current_hz = hz;
+    pthread_mutex_unlock(&pwm_lock);
+    return 0;
+}
+
+int PWM_get_frequency(void) {
+    pthread_mutex_lock(&pwm_lock);
+    int f = current_hz;
+    pthread_mutex_unlock(&pwm_lock);
+    return f;
 }

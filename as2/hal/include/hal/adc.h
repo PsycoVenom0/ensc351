@@ -1,11 +1,15 @@
 #pragma once
+/**
+ * adc.h
+ *
+ * Hardware Abstraction Layer for an SPI-connected ADC.
+ * Provides a simple API to initialize, read, and clean up the ADC.
+ *
+ * All voltages are returned in volts (0.0 - ADC_REF_V).
+ */
 
-// Initialize the ADC hardware (MCP3208 via SPI)
 void ADC_init(void);
-
-// Clean up ADC resources
 void ADC_cleanup(void);
 
-// Read voltage from channel (scaled 0.0–3.3 V)
+/* Reads the configured ADC channel and returns voltage (in volts). */
 double ADC_read_voltage(void);
-

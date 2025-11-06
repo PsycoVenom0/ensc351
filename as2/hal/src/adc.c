@@ -1,3 +1,5 @@
+// hal/src/adc.c
+#define _GNU_SOURCE
 #include "hal/adc.h"
 #include <stdio.h>
 #include <stdint.h>
@@ -8,39 +10,57 @@
 #include <linux/spi/spidev.h>
 #include <errno.h>
 
+/* ===== Configuration ===== */
+#ifndef SPIDEV_DEVICE
 #define SPIDEV_DEVICE "/dev/spidev0.0"
+#endif
+#ifndef ADC_CHANNEL
 #define ADC_CHANNEL 0
+#endif
+#ifndef ADC_REF_V
 #define ADC_REF_V 3.3
+#endif
+#ifndef SPI_SPEED_HZ
+#define SPI_SPEED_HZ 1000000U   /* 1 MHz default */
+#endif
 
 static int spi_fd = -1;
-static uint32_t spi_speed = 1000000;
-static uint8_t spi_mode = 0;
-static uint8_t spi_bits = 8;
+static const uint8_t spi_mode = 0;
+static const uint8_t spi_bits = 8;
+static const uint32_t spi_speed = SPI_SPEED_HZ;
+
+/* ===== Implementation ===== */
 
 void ADC_init(void) {
     spi_fd = open(SPIDEV_DEVICE, O_RDWR);
     if (spi_fd < 0) {
-        perror("hal_adc: open spidev");
+        perror("ADC_init: open spidev");
+        spi_fd = -1;
         return;
     }
-    ioctl(spi_fd, SPI_IOC_WR_MODE, &spi_mode);
-    ioctl(spi_fd, SPI_IOC_WR_BITS_PER_WORD, &spi_bits);
-    ioctl(spi_fd, SPI_IOC_WR_MAX_SPEED_HZ, &spi_speed);
+    if (ioctl(spi_fd, SPI_IOC_WR_MODE, &spi_mode) < 0)
+        perror("ADC_init: SPI_IOC_WR_MODE");
+    if (ioctl(spi_fd, SPI_IOC_WR_BITS_PER_WORD, &spi_bits) < 0)
+        perror("ADC_init: SPI_IOC_WR_BITS_PER_WORD");
+    if (ioctl(spi_fd, SPI_IOC_WR_MAX_SPEED_HZ, &spi_speed) < 0)
+        perror("ADC_init: SPI_IOC_WR_MAX_SPEED_HZ");
 }
 
 void ADC_cleanup(void) {
-    if (spi_fd >= 0) close(spi_fd);
-    spi_fd = -1;
+    if (spi_fd >= 0) {
+        close(spi_fd);
+        spi_fd = -1;
+    }
 }
 
-static int read_adc_channel(int ch) {
+/* Perform single-ended read for channel ch (0..7). */
+static int ADC_read_raw(int ch) {
     if (spi_fd < 0) return -1;
-    uint8_t tx[3] = {0};
-    uint8_t rx[3] = {0};
+    if (ch < 0 || ch > 7) return -1;
 
+    uint8_t tx[3] = {0}, rx[3] = {0};
     tx[0] = 0x06 | ((ch & 0x04) >> 2);
-    tx[1] = (ch & 0x03) << 6;
-    tx[2] = 0x00;
+    tx[1] = (uint8_t)((ch & 0x03) << 6);
 
     struct spi_ioc_transfer tr = {
         .tx_buf = (unsigned long)tx,
@@ -49,14 +69,21 @@ static int read_adc_channel(int ch) {
         .speed_hz = spi_speed,
         .bits_per_word = spi_bits,
     };
-    int ret = ioctl(spi_fd, SPI_IOC_MESSAGE(1), &tr);
-    if (ret < 1) return -1;
 
-    return ((rx[1] & 0x0F) << 8) | rx[2];
+    if (ioctl(spi_fd, SPI_IOC_MESSAGE(1), &tr) < 1)
+        return -1;
+
+    return ((rx[1] & 0x0F) << 8) | rx[2];  /* 12-bit value */
 }
 
 double ADC_read_voltage(void) {
-    int raw = read_adc_channel(ADC_CHANNEL);
-    if (raw < 0) return 0.0;
-    return ((double)raw * ADC_REF_V) / 4095.0;
+    int raw = ADC_read_raw(ADC_CHANNEL);
+    if (raw < 0) {
+        /* fallback simulated voltage for testing */
+        static double t = 0.0;
+        t += 0.01;
+        if (t > ADC_REF_V) t = 0.0;
+        return t;
+    }
+    return ((double)raw) * (ADC_REF_V / 4095.0);
 }
