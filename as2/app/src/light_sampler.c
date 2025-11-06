@@ -1,5 +1,4 @@
-// app/src/light_sampler.c
-#define _POSIX_C_SOURCE 200809L
+#define _GNU_SOURCE
 #include "light_sampler.h"
 #include "hal/adc.h"
 #include "periodTimer.h"
@@ -48,12 +47,13 @@ static void ensure_capacity(int needed)
 static void *sampler_thread_func(void *arg)
 {
     (void)arg;
-    (void)Period_init;
+    (void)Period_init; // This line seems to be a no-op, but is harmless.
 
     Period_init();
 
     while (running) {
-        double v = ADC_read_voltage();
+        // NOTE: This relies on adc.c being hardcoded to the correct channel
+        double v = ADC_read_voltage(); 
         Period_markEvent(PERIOD_EVENT_SAMPLE_LIGHT);
 
         pthread_mutex_lock(&lock);
@@ -66,6 +66,7 @@ static void *sampler_thread_func(void *arg)
             avg_val = v;
             avg_initialized = 1;
         } else {
+            // Apply exponential moving average
             avg_val = (1.0 - EMA_ALPHA) * avg_val + EMA_ALPHA * v;
         }
 
@@ -121,11 +122,21 @@ void LightSampler_moveCurrentDataToHistory(void)
     }
     curr_len = 0;
 
-    PeriodStatistics ps = Period_getStatisticsAndClear(PERIOD_EVENT_SAMPLE_LIGHT);
-    stat_min_ms = ps.min_ms;
-    stat_max_ms = ps.max_ms;
-    stat_avg_ms = ps.avg_ms;
-    stat_count = ps.count;
+    // ================== FIX ==================
+    // The original code had compilation errors here.
+    // 1. Declare the struct defined in periodTimer.h
+    Period_statistics_t ps; 
+    
+    // 2. Pass a pointer to the void function
+    Period_getStatisticsAndClear(PERIOD_EVENT_SAMPLE_LIGHT, &ps); 
+    
+    // 3. Use the correct member names from the struct
+    stat_min_ms = ps.minPeriodInMs;
+    stat_max_ms = ps.maxPeriodInMs;
+    stat_avg_ms = ps.avgPeriodInMs;
+    stat_count = ps.numSamples;
+    // =============== END FIX ===============
+
     pthread_mutex_unlock(&lock);
 }
 

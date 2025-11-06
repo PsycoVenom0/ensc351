@@ -7,7 +7,7 @@
 #include <pthread.h>
 
 #ifndef PWM_SYS_DIR
-#define PWM_SYS_DIR "/dev/hat/pwm/GPIO12/"  /* Default path per PWM guide */
+#define PWM_SYS_DIR "/dev/hat/pwm/GPIO13/"
 #endif
 
 #define PWM_MAX_HZ 500
