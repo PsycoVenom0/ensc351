@@ -1,4 +1,3 @@
-// hal/src/pwmLed.c
 #define _GNU_SOURCE
 #include "hal/pwmLed.h"
 #include <stdio.h>

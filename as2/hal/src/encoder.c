@@ -13,10 +13,10 @@
 
 /* These GPIO line numbers may vary depending on wiring */
 #ifndef ENCODER_LINE_A
-#define ENCODER_LINE_A 36
+#define ENCODER_LINE_A 17
 #endif
 #ifndef ENCODER_LINE_B
-#define ENCODER_LINE_B 17
+#define ENCODER_LINE_B 16
 #endif
 
 static int running = 0;

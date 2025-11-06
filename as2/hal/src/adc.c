@@ -1,4 +1,3 @@
-// hal/src/adc.c
 #define _GNU_SOURCE
 #include "hal/adc.h"
 #include <stdio.h>
