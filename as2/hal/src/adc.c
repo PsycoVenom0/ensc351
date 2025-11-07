@@ -14,7 +14,7 @@
 #define SPIDEV_DEVICE "/dev/spidev0.0"
 #endif
 #ifndef ADC_CHANNEL
-#define ADC_CHANNEL 0
+#define ADC_CHANNEL 0 // Using AIN0 for the light sensor
 #endif
 #ifndef ADC_REF_V
 #define ADC_REF_V 3.3
@@ -31,12 +31,14 @@ static const uint32_t spi_speed = SPI_SPEED_HZ;
 /* ===== Implementation ===== */
 
 void ADC_init(void) {
+    // Open the SPI device
     spi_fd = open(SPIDEV_DEVICE, O_RDWR);
     if (spi_fd < 0) {
         perror("ADC_init: open spidev");
         spi_fd = -1;
         return;
     }
+    // Set SPI mode, bits, and speed
     if (ioctl(spi_fd, SPI_IOC_WR_MODE, &spi_mode) < 0)
         perror("ADC_init: SPI_IOC_WR_MODE");
     if (ioctl(spi_fd, SPI_IOC_WR_BITS_PER_WORD, &spi_bits) < 0)
@@ -52,14 +54,16 @@ void ADC_cleanup(void) {
     }
 }
 
-/* Perform single-ended read for channel ch (0..7). */
+// Perform single-ended read for channel ch (0..7).
 static int ADC_read_raw(int ch) {
     if (spi_fd < 0) return -1;
     if (ch < 0 || ch > 7) return -1;
 
+    // MCP3208 SPI message format
     uint8_t tx[3] = {0}, rx[3] = {0};
-    tx[0] = 0x06 | ((ch & 0x04) >> 2);
-    tx[1] = (uint8_t)((ch & 0x03) << 6);
+    tx[0] = 0x06 | ((ch & 0x04) >> 2); // Start, SGL, D2
+    tx[1] = (uint8_t)((ch & 0x03) << 6); // D1, D0
+    tx[2] = 0x00;
 
     struct spi_ioc_transfer tr = {
         .tx_buf = (unsigned long)tx,
@@ -72,17 +76,19 @@ static int ADC_read_raw(int ch) {
     if (ioctl(spi_fd, SPI_IOC_MESSAGE(1), &tr) < 1)
         return -1;
 
-    return ((rx[1] & 0x0F) << 8) | rx[2];  /* 12-bit value */
+    // Combine result bytes into a 12-bit value
+    return ((rx[1] & 0x0F) << 8) | rx[2];
 }
 
 double ADC_read_voltage(void) {
     int raw = ADC_read_raw(ADC_CHANNEL);
     if (raw < 0) {
-        /* fallback simulated voltage for testing */
+        // Fallback for testing
         static double t = 0.0;
         t += 0.01;
         if (t > ADC_REF_V) t = 0.0;
         return t;
     }
+    // Convert 12-bit raw value (0-4095) to voltage
     return ((double)raw) * (ADC_REF_V / 4095.0);
 }

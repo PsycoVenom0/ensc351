@@ -16,23 +16,27 @@ static pthread_t sampler_thread;
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 static volatile int running = 0;
 
+// "Current" buffer: holds samples for the active second
 static double *curr_buf = NULL;
 static int curr_len = 0;
 static int curr_cap = 0;
 
+// "History" buffer: holds the *previous* second's samples
 static double *hist_buf = NULL;
 static int hist_len = 0;
 
+// Exponentially smoothed average value
 static double avg_val = 0.0;
 static int avg_initialized = 0;
 static long long total_samples = 0;
 
+// Statistics from periodTimer
 static double stat_min_ms = 0.0;
 static double stat_max_ms = 0.0;
 static double stat_avg_ms = 0.0;
 static int stat_count = 0;
 
-/* --- internal helpers --- */
+// Ensures the 'current' buffer has enough capacity
 static void ensure_capacity(int needed)
 {
     if (curr_cap >= needed) return;
@@ -43,41 +47,42 @@ static void ensure_capacity(int needed)
     curr_cap = new_cap;
 }
 
-/* --- background sampling thread --- */
+// Background thread to continuously sample the ADC
 static void *sampler_thread_func(void *arg)
 {
     (void)arg;
-    (void)Period_init; // This line seems to be a no-op, but is harmless.
+    (void)Period_init;
 
     Period_init();
 
     while (running) {
-        // NOTE: This relies on adc.c being hardcoded to the correct channel
+        // Mark event for timing statistics
         double v = ADC_read_voltage(); 
         Period_markEvent(PERIOD_EVENT_SAMPLE_LIGHT);
 
         pthread_mutex_lock(&lock);
 
+        // Add sample to the current buffer
         ensure_capacity(curr_len + 1);
         curr_buf[curr_len++] = v;
         total_samples++;
 
+        // Update the exponential moving average (EMA)
         if (!avg_initialized) {
             avg_val = v;
             avg_initialized = 1;
         } else {
-            // Apply exponential moving average
             avg_val = (1.0 - EMA_ALPHA) * avg_val + EMA_ALPHA * v;
         }
 
         pthread_mutex_unlock(&lock);
+
+        // Sleep for 1ms
         usleep(SAMPLE_SLEEP_US);
     }
 
     return NULL;
 }
-
-/* --- public API --- */
 
 void LightSampler_init(void)
 {
@@ -106,40 +111,40 @@ void LightSampler_cleanup(void)
     Period_cleanup();
 }
 
+// Moves the "current" sample buffer into the "history" buffer
 void LightSampler_moveCurrentDataToHistory(void)
 {
     Period_markEvent(PERIOD_EVENT_MARK_SECOND);
 
     pthread_mutex_lock(&lock);
+
+    // Free the old history buffer
     free(hist_buf);
     hist_buf = NULL;
     hist_len = 0;
 
+    // Move current data to history
     if (curr_len > 0) {
         hist_buf = malloc(sizeof(double) * curr_len);
         memcpy(hist_buf, curr_buf, sizeof(double) * curr_len);
         hist_len = curr_len;
     }
+    // Reset the current buffer
     curr_len = 0;
 
-    // ================== FIX ==================
-    // The original code had compilation errors here.
-    // 1. Declare the struct defined in periodTimer.h
+    // Get statistics for the second that just finished
     Period_statistics_t ps; 
-    
-    // 2. Pass a pointer to the void function
     Period_getStatisticsAndClear(PERIOD_EVENT_SAMPLE_LIGHT, &ps); 
     
-    // 3. Use the correct member names from the struct
     stat_min_ms = ps.minPeriodInMs;
     stat_max_ms = ps.maxPeriodInMs;
     stat_avg_ms = ps.avgPeriodInMs;
     stat_count = ps.numSamples;
-    // =============== END FIX ===============
 
     pthread_mutex_unlock(&lock);
 }
 
+// Returns a *copy* of the history buffer. Caller must free.
 double *LightSampler_getHistory(int *size)
 {
     pthread_mutex_lock(&lock);
