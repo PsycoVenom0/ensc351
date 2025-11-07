@@ -8,14 +8,14 @@
 #include <errno.h>
 
 #ifndef GPIO_CHIP_PATH
-#define GPIO_CHIP_PATH "/dev/gpiochip0"
+#define GPIO_CHIP_PATH "/dev/gpiochip2"
 #endif
 
 #ifndef ENCODER_LINE_A
-#define ENCODER_LINE_A 17
+#define ENCODER_LINE_A 7
 #endif
 #ifndef ENCODER_LINE_B
-#define ENCODER_LINE_B 16
+#define ENCODER_LINE_B 8
 #endif
 
 #define DEBOUNCE_US 5000
@@ -95,9 +95,9 @@ static void *encoder_thread(void *arg) {
 
         if (lastA == 0 && a == 1) {
             pthread_mutex_lock(&lock);
-            if (b == 0 && freq < 500)
+            if (b == 1 && freq < 500)
                 freq++;
-            else if (b == 1 && freq > 0)
+            else if (b == 0 && freq > 0)
                 freq--;
             int f = freq;
             pthread_mutex_unlock(&lock);
