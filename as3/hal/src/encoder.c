@@ -1,173 +1,122 @@
-#define _GNU_SOURCE
 #include "hal/encoder.h"
-#include "hal/pwmLed.h"
-#include <pthread.h>
-#include <stdio.h>
-#include <unistd.h>
 #include <gpiod.h>
-#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <unistd.h>
 
-// Hardware configuration found using `gpioinfo`
-#ifndef GPIO_CHIP_PATH
-#define GPIO_CHIP_PATH "/dev/gpiochip2"
-#endif
+// Pins for BeagleY-AI
+// A = Pin 11 (GPIO17), B = Pin 13 (GPIO27), Btn = Pin 15 (GPIO22)
+#define LINE_A "GPIO17"
+#define LINE_B "GPIO27"
+#define LINE_BTN "GPIO22"
 
-#ifndef ENCODER_LINE_A
-#define ENCODER_LINE_A 7  // "GPIO16" is Line 7 on chip 2
-#endif
-#ifndef ENCODER_LINE_B
-#define ENCODER_LINE_B 8  // "GPIO17" is Line 8 on chip 2
-#endif
+static struct gpiod_chip *chipA = NULL;
+static struct gpiod_chip *chipB = NULL;
+static struct gpiod_chip *chipBtn = NULL;
+static struct gpiod_line *lineA = NULL;
+static struct gpiod_line *lineB = NULL;
+static struct gpiod_line *lineBtn = NULL;
 
-// Cooldown period to prevent contact bounce (20ms)
-#define DEBOUNCE_COOLDOWN_US 20000
-
+static pthread_t encoderThreadId;
 static int running = 0;
-static pthread_t thread;
-static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-static int freq = 10; // Start at 10Hz
-static EncoderFreqCB callback = NULL;
+static int tickCount = 0; // Accumulated rotation ticks
+static pthread_mutex_t countMutex = PTHREAD_MUTEX_INITIALIZER;
 
-static void invoke_callback(int f) {
-    if (callback) callback(f);
+// Helper to configure a line as input
+// Returns the line, and sets the chip pointer so we can close it later.
+static struct gpiod_line* config_line(const char* name, struct gpiod_chip **chipOut) {
+    struct gpiod_line *line = gpiod_line_find(name);
+    if (!line) {
+        printf("ERROR: Encoder line %s not found!\n", name);
+        return NULL;
+    }
+    
+    *chipOut = gpiod_line_get_chip(line);
+
+    // Request as input
+    if (gpiod_line_request_input(line, "beatbox_encoder") < 0) {
+        printf("ERROR: Failed to request input for %s\n", name);
+        return NULL;
+    }
+    return line;
 }
 
-// The background thread that polls the rotary encoder
-static void *encoder_thread(void *arg) {
-    (void)arg;
-    struct gpiod_chip *chip = NULL;
-    struct gpiod_line_request *req = NULL;
-    struct gpiod_line_settings *settings = NULL;
-    struct gpiod_request_config *req_cfg = NULL;
-    struct gpiod_line_config *line_cfg = NULL;
-    int lastA = 0;
-
-    // Open the GPIO chip
-    chip = gpiod_chip_open(GPIO_CHIP_PATH);
-    if (!chip) {
-        perror("encoder_thread: gpiod_chip_open");
-        return NULL;
-    }
-
-    // Configure settings for the GPIO lines
-    settings = gpiod_line_settings_new();
-    if (!settings) {
-        perror("encoder_thread: gpiod_line_settings_new");
-        gpiod_chip_close(chip);
-        return NULL;
-    }
-    // Configure lines as input
-    gpiod_line_settings_set_direction(settings, GPIOD_LINE_DIRECTION_INPUT);
-    // Attempt to set internal pull-up (matches external hardware)
-    gpiod_line_settings_set_bias(settings, GPIOD_LINE_BIAS_PULL_UP);
-    gpiod_line_settings_set_debounce_period_us(settings, 1000); // 1ms hardware debounce
-
-    // Configure the request
-    req_cfg = gpiod_request_config_new();
-    gpiod_request_config_set_consumer(req_cfg, "encoder");
-
-    // Configure the specific lines (A and B)
-    line_cfg = gpiod_line_config_new();
-    const unsigned int offsets[2] = {ENCODER_LINE_A, ENCODER_LINE_B};
-    gpiod_line_config_add_line_settings(line_cfg, offsets, 2, settings);
-
-    // Request the lines from the kernel
-    req = gpiod_chip_request_lines(chip, req_cfg, line_cfg);
-
-    gpiod_line_settings_free(settings);
-    gpiod_request_config_free(req_cfg);
-    gpiod_line_config_free(line_cfg);
-
-    if (!req) {
-        perror("encoder_thread: gpiod_chip_request_lines");
-        gpiod_chip_close(chip);
-        return NULL;
-    }
-
-    // Initialize lastA to the current state (should be HIGH/1)
-    lastA = gpiod_line_request_get_value(req, ENCODER_LINE_A);
-    if (lastA < 0) {
-        perror("encoder_thread: gpiod_line_request_get_value (initial)");
-        lastA = 1; // Assume idle HIGH state
-    }
-
-    // Main polling loop
+static void* encoderThread(void* arg)
+{
+    int lastA = gpiod_line_get_value(lineA);
+    
     while (running) {
-        // Poll every 1ms
-        usleep(1000); 
+        int currentA = gpiod_line_get_value(lineA);
         
-        int a = gpiod_line_request_get_value(req, ENCODER_LINE_A);
-        if (a < 0) {
-            perror("encoder_thread: gpiod_line_request_get_value (A)");
-            continue;
-        }
-
-        // Look for a FALLING edge (1 -> 0)
-        if (lastA == 1 && a == 0) {
+        // Detect edge on A
+        if (currentA != lastA) {
+            // Simple Quadrature Logic:
+            // If A changed, check B. 
+            // If A == B, we moved one way. If A != B, we moved the other.
+            int currentB = gpiod_line_get_value(lineB);
             
-            // A has fallen, IMMEDIATELY check B to get direction
-            int b = gpiod_line_request_get_value(req, ENCODER_LINE_B);
-            if (b < 0) {
-                 perror("encoder_thread: gpiod_line_request_get_value (B)");
-                 continue;
+            pthread_mutex_lock(&countMutex);
+            if (currentA == currentB) {
+                tickCount++; // CW
+            } else {
+                tickCount--; // CCW
             }
-
-            pthread_mutex_lock(&lock);
+            pthread_mutex_unlock(&countMutex);
             
-            // Quadrature logic:
-            // Swapped to make b=0 increase and b=1 decrease (matches HW)
-            if (b == 0 && freq < 500) {
-                freq++; // Increase frequency
-            } else if (b == 1 && freq > 0) {
-                freq--; // Decrease frequency
-            }
-
-            int f = freq;
-            pthread_mutex_unlock(&lock);
-            
-            PWM_set_frequency(f);
-            invoke_callback(f);
-            
-            // DEBOUNCE COOLDOWN:
-            // Wait for contacts to settle before looking for the next click.
-            usleep(DEBOUNCE_COOLDOWN_US);
-            
-            // Re-read 'a' to get the settled state
-            lastA = gpiod_line_request_get_value(req, ENCODER_LINE_A);
-        } else {
-            // No event, just update lastA
-            lastA = a;
+            // Debounce delay
+            usleep(2000); 
         }
+        
+        lastA = currentA;
+        usleep(1000); // Poll rate ~1kHz
     }
-
-    // Cleanup
-    gpiod_line_request_release(req);
-    gpiod_chip_close(chip);
     return NULL;
 }
 
-void Encoder_init(void) {
-    pthread_mutex_lock(&lock);
+void Encoder_init(void)
+{
+    lineA = config_line(LINE_A, &chipA);
+    lineB = config_line(LINE_B, &chipB);
+    lineBtn = config_line(LINE_BTN, &chipBtn);
+
+    if (!lineA || !lineB || !lineBtn) {
+        printf("ERROR: Encoder init failed (pins not found).\n");
+        exit(1);
+    }
+
     running = 1;
-    pthread_create(&thread, NULL, encoder_thread, NULL);
-    PWM_set_frequency(freq); // Set initial 10Hz frequency
-    pthread_mutex_unlock(&lock);
+    pthread_create(&encoderThreadId, NULL, encoderThread, NULL);
 }
 
-void Encoder_cleanup(void) {
-    pthread_mutex_lock(&lock);
+void Encoder_cleanup(void)
+{
     running = 0;
-    pthread_mutex_unlock(&lock);
-    pthread_join(thread, NULL); // Wait for thread to finish
+    pthread_join(encoderThreadId, NULL);
+
+    if (lineA) gpiod_line_release(lineA);
+    if (lineB) gpiod_line_release(lineB);
+    if (lineBtn) gpiod_line_release(lineBtn);
+    
+    // Close chips if they were opened by gpiod_line_find
+    if (chipA) gpiod_chip_close(chipA);
+    // Note: If multiple lines share a chip, we should be careful closing.
+    // However, libgpiod handles this fairly gracefully usually, or we can just skip closing
+    // since the OS cleans up on exit.
 }
 
-int Encoder_get_frequency(void) {
-    pthread_mutex_lock(&lock);
-    int f = freq;
-    pthread_mutex_unlock(&lock);
-    return f;
+int Encoder_getTickCount(void)
+{
+    pthread_mutex_lock(&countMutex);
+    int ret = tickCount;
+    tickCount = 0; // Reset after reading so we get "delta" since last check
+    pthread_mutex_unlock(&countMutex);
+    return ret;
 }
 
-void Encoder_set_callback(EncoderFreqCB cb) {
-    callback = cb;
+bool Encoder_isPressed(void)
+{
+    if (!lineBtn) return false;
+    int val = gpiod_line_get_value(lineBtn);
+    return (val == 0); // Active Low: 0 = Pressed
 }

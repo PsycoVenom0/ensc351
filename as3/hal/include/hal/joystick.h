@@ -9,8 +9,15 @@ typedef enum {
     JS_RIGHT
 } JoystickDirection;
 
+// NOTE: ADC_init() must be called before using these functions!
+
+// Initialize joystick logic (no hardware init needed, relies on ADC)
 void Joystick_init(void);
-JoystickDirection Joystick_read(void);
+
+// Cleanup (currently empty)
 void Joystick_cleanup(void);
+
+// Get current joystick direction (Only reads Y axis for assignment)
+JoystickDirection Joystick_read(void);
 
 #endif
