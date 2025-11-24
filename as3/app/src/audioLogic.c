@@ -71,9 +71,9 @@ static void* beatThread(void* arg) {
                 if(i==2 || i==6) AudioMixer_queueSound(&snare);
             } 
             else if (currentMode == 2) { // Custom
-                if (i==0) AudioMixer_queueSound(&baseDrum);
-                if (i==2 || i==4 || i==6) AudioMixer_queueSound(&snare);
-                if (i % 2 != 0) AudioMixer_queueSound(&hiHat);
+                if (i == 0 || i == 3 || i == 4) AudioMixer_queueSound(&baseDrum);
+                if (i == 2 || i == 6) AudioMixer_queueSound(&snare);
+                if (i == 0 || i == 1 || i == 2 || i == 3 || i == 4 || i == 5 || i == 6 || i == 7) AudioMixer_queueSound(&hiHat);
             }
 
             usleep(delay_us);

@@ -90,13 +90,13 @@ int main(void) {
                 triggered = true;
             }
             // Y-Axis Shake
-            else if (abs(y - 2048) > thresh) {
+            if (abs(y - 2048) > thresh) {
                 Beatbox_playSound(2); // Hi-Hat
                 triggered = true;
             }
             // Z-Axis Shake (Gravity is ~1G down, so resting is different, likely ~2048+offset or -offset)
             // We just check large deviation from what is likely 'flat' (2048)
-            else if (abs(z - 2048) > thresh) {
+            if (abs(z - 2048) > thresh) {
                 Beatbox_playSound(0); // Base
                 triggered = true;
             }
