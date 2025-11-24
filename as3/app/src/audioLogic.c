@@ -15,7 +15,7 @@
 
 // Files
 #define FILE_BASE "beatbox-wav-files/100051__menegass__gui-drum-bd-hard.wav"
-#define FILE_HIHAT "beatbox-wav-files/100054__menegass__gui-drum-ch.wav"
+#define FILE_HIHAT "beatbox-wav-files/100053__menegass__gui-drum-cc.wav"
 #define FILE_SNARE "beatbox-wav-files/100059__menegass__gui-drum-snare-soft.wav"
 
 static int bpm = DEFAULT_BPM;
