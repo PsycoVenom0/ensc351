@@ -1,5 +1,5 @@
-#ifndef BEATBOX_H
-#define BEATBOX_H
+#ifndef AUDIOLOGIC_H
+#define AUDIOLOGIC_H
 
 // Initialize the beatbox (load sounds, start thread)
 void Beatbox_init(void);

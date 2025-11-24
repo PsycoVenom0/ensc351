@@ -18,6 +18,7 @@ static struct sockaddr_in servaddr, cliaddr;
 static int running = 0;
 
 static void* udpThread(void* arg) {
+    (void)arg; // Fix: Suppress unused parameter warning
     char buffer[MAX_LEN];
     socklen_t len = sizeof(cliaddr);
 
@@ -56,7 +57,6 @@ static void* udpThread(void* arg) {
             }
             else if (strncmp(buffer, "stop", 4) == 0) {
                 strcpy(reply, "stopping");
-                // Ideally signal main to exit, but for now just reply
             }
 
             sendto(sockfd, reply, strlen(reply), 0, (struct sockaddr *)&cliaddr, len);

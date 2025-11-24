@@ -54,8 +54,6 @@ void AudioMixer_init(void)
 	AudioMixer_setVolume(DEFAULT_VOLUME);
 
 	// Initialize the currently active sound-bites being played
-	// REVISIT:- Implement this. Hint: set the pSound pointer to NULL for each
-	//     sound bite.
 	for(int i = 0; i < MAX_SOUND_BITES; i++) {
 		soundBites[i].pSound = NULL;
 		soundBites[i].location = 0;
@@ -145,22 +143,11 @@ void AudioMixer_freeWaveFileData(wavedata_t *pSound)
 void AudioMixer_queueSound(wavedata_t *pSound)
 {
 	// Ensure we are only being asked to play "good" sounds:
-	assert(pSound->numSamples > 0);
-	assert(pSound->pData);
+	if (pSound == NULL || pSound->numSamples <= 0) {
+		printf("ERROR: Invalid sound passed to queueSound()\n");
+		return;
+	}
 
-	// Insert the sound by searching for an empty sound bite spot
-	/*
-	 * REVISIT: Implement this:
-	 * 1. Since this may be called by other threads, and there is a thread
-	 * processing the soundBites[] array, we must ensure access is threadsafe.
-	 * 2. Search through the soundBites[] array looking for a free slot.
-	 * 3. If a free slot is found, place the new sound file into that slot.
-	 * Note: You are only copying a pointer, not the entire data of the wave file!
-	 * 4. After searching through all slots, if no free slot is found then print
-	 * an error message to the console (and likely just return vs asserting/exiting
-	 * because the application most likely doesn't want to crash just for
-	 * not being able to play another wave file.
-	 */
 	pthread_mutex_lock(&audioMutex);
 	int foundSlot = 0;
 	for (int i = 0; i < MAX_SOUND_BITES; i++) {
@@ -191,8 +178,6 @@ void AudioMixer_cleanup(void)
 	snd_pcm_close(handle);
 
 	// Free playback buffer
-	// (note that any wave files read into wavedata_t records must be freed
-	//  in addition to this by calling AudioMixer_freeWaveFileData() on that struct.)
 	free(playbackBuffer);
 	playbackBuffer = NULL;
 
@@ -203,17 +188,11 @@ void AudioMixer_cleanup(void)
 
 int AudioMixer_getVolume()
 {
-	// Return the cached volume; good enough unless someone is changing
-	// the volume through other means and the cached value is out of date.
 	return volume;
 }
 
-// Function copied from:
-// http://stackoverflow.com/questions/6787318/set-alsa-master-volume-from-c-code
-// Written by user "trenki".
 void AudioMixer_setVolume(int newVolume)
 {
-	// Ensure volume is reasonable; If so, cache it for later getVolume() calls.
 	if (newVolume < 0 || newVolume > AUDIOMIXER_MAX_VOLUME) {
 		printf("ERROR: Volume must be between 0 and 100.\n");
 		return;
@@ -224,8 +203,7 @@ void AudioMixer_setVolume(int newVolume)
     snd_mixer_t *mixerHandle;
     snd_mixer_selem_id_t *sid;
     const char *card = "default";
-    // const char *selem_name = "PCM";	// For ZEN cape
-    const char *selem_name = "Speaker";	// For USB Audio (Often 'Speaker' or 'PCM')
+    const char *selem_name = "Speaker";	// Default for many USB
 
     snd_mixer_open(&mixerHandle, 0);
     snd_mixer_attach(mixerHandle, card);
@@ -238,7 +216,7 @@ void AudioMixer_setVolume(int newVolume)
     snd_mixer_elem_t* elem = snd_mixer_find_selem(mixerHandle, sid);
 
 	if (elem == NULL) {
-		// Fallback: try "PCM" if "Speaker" not found (common on some USB adapters)
+		// Fallback to PCM
 		snd_mixer_selem_id_set_name(sid, "PCM");
 		elem = snd_mixer_find_selem(mixerHandle, sid);
 	}
@@ -246,68 +224,19 @@ void AudioMixer_setVolume(int newVolume)
 	if (elem) {
 		snd_mixer_selem_get_playback_volume_range(elem, &min, &max);
 		snd_mixer_selem_set_playback_volume_all(elem, volume * max / 100);
-	} else {
-		// printf("WARNING: Audio Mixer unable to find mixer element (Speaker/PCM).\n");
 	}
 
     snd_mixer_close(mixerHandle);
 }
 
 
-// Fill the buff array with new PCM values to output.
-//    buff: buffer to fill with new PCM data from sound bites.
-//    size: the number of *values* to store into buff
 static void fillPlaybackBuffer(short *buff, int size)
 {
-	/*
-	 * REVISIT: Implement this
-	 * 1. Wipe the buff to all 0's to clear any previous PCM data.
-	 * Hint: use memset(); read the docs about its use of size.
-	 * 2. Since this is called from a background thread, and soundBites[] array
-	 * may be used by any other thread, must synchronize this.
-	 * 3. Loop through each slot in soundBites[], which are sounds that are either
-	 * waiting to be played, or partially already played:
-	 * - If the sound bite slot is unused, do nothing for this slot.
-	 * - Otherwise "add" this sound bite's data to the play-back buffer
-	 * (other sound bites needing to be played back will also add to the same data).
-	 * * Record that this portion of the sound bite has been played back by incrementing
-	 * the location inside the data where play-back currently is.
-	 * * If you have now played back the entire sample, free the slot in the
-	 * soundBites[] array.
-	 *
-	 * Notes on "adding" PCM samples:
-	 * - PCM is stored as signed shorts (between SHRT_MIN and SHRT_MAX).
-	 * - When adding values, ensure there is not an overflow. Any values which would
-	 * greater than SHRT_MAX should be clipped to SHRT_MAX; likewise for underflow.
-	 * - Don't overflow any arrays!
-	 * - Efficiency matters here! The compiler may do quite a bit for you, but it doesn't
-	 * hurt to keep it in mind. Here are some tips for efficiency and readability:
-	 * * If, for each pass of the loop which "adds" you need to change a value inside
-	 * a struct inside an array, it may be faster to first load the value into a local
-	 * variable, increment this variable as needed throughout the loop, and then write it
-	 * back into the struct inside the array after. For example:
-	 * int offset = myArray[someIdx].value;
-	 * for (int i =...; i < ...; i++) {
-	 * offset ++;
-	 * }
-	 * myArray[someIdx].value = offset;
-	 * * If you need a value in a number of places, try loading it into a local variable
-	 * int someNum = myArray[someIdx].value;
-	 * if (someNum < X || someNum > Y || someNum != Z) {
-	 * someNum = 42;
-	 * }
-	 * ... use someNum vs myArray[someIdx].value;
-	 *
-	 */
-	
-	// 1. Wipe buffer to silence (0)
 	memset(buff, 0, size * sizeof(short));
 
 	pthread_mutex_lock(&audioMutex);
 
-	// 2. Mix all active sounds
 	for (int i = 0; i < MAX_SOUND_BITES; i++) {
-		// If this slot is empty, skip it
 		if (soundBites[i].pSound == NULL) {
 			continue;
 		}
@@ -315,34 +244,22 @@ static void fillPlaybackBuffer(short *buff, int size)
 		wavedata_t *pWav = soundBites[i].pSound;
 		int currentLoc = soundBites[i].location;
 		
-		// Process audio for this specific sound
 		for (int j = 0; j < size; j++) {
-			// Check if we've reached the end of the sound file
 			if (currentLoc >= pWav->numSamples) {
-				// Free the slot
 				soundBites[i].pSound = NULL;
 				break; 
 			}
 
-			// MIXING:
-			// Use an int to prevent overflow during the addition
 			int sample = (int)buff[j] + (int)pWav->pData[currentLoc];
 			
-			// CLIPPING:
-			// Clamp value to 16-bit range (-32768 to 32767)
-			if (sample > SHRT_MAX) {
-				sample = SHRT_MAX;
-			} else if (sample < SHRT_MIN) {
-				sample = SHRT_MIN;
-			}
+			// Clipping
+			if (sample > SHRT_MAX) sample = SHRT_MAX;
+			else if (sample < SHRT_MIN) sample = SHRT_MIN;
 
-			// Store back into buffer
 			buff[j] = (short)sample;
 			currentLoc++;
 		}
 		
-		// Update the location for the next time this buffer fills
-		// (Only if we didn't just finish the sound and set pSound to NULL)
 		if (soundBites[i].pSound != NULL) {
 			soundBites[i].location = currentLoc;
 		}
@@ -354,15 +271,14 @@ static void fillPlaybackBuffer(short *buff, int size)
 
 void* playbackThread(void* _arg)
 {
+	(void)_arg; // Fix: Suppress unused parameter warning
+
 	while (!stopping) {
-		// Generate next block of audio
 		fillPlaybackBuffer(playbackBuffer, playbackBufferSize);
 
-		// Output the audio
 		snd_pcm_sframes_t frames = snd_pcm_writei(handle,
 				playbackBuffer, playbackBufferSize);
 
-		// Check for (and handle) possible error conditions on output
 		if (frames < 0) {
 			fprintf(stderr, "AudioMixer: writei() returned %li\n", frames);
 			frames = snd_pcm_recover(handle, frames, 1);
@@ -372,7 +288,8 @@ void* playbackThread(void* _arg)
 					frames);
 			exit(EXIT_FAILURE);
 		}
-		if (frames > 0 && frames < playbackBufferSize) {
+		// Fix: Cast frames to unsigned long to match playbackBufferSize
+		if (frames > 0 && (unsigned long)frames < playbackBufferSize) {
 			printf("Short write (expected %li, wrote %li)\n",
 					playbackBufferSize, frames);
 		}
