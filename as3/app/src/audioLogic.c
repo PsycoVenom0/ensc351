@@ -1,4 +1,4 @@
-#include "audioLogic.h" 
+#include "audioLogic.h"
 #include "audioMixer.h"
 #include <pthread.h>
 #include <stdio.h>
@@ -13,25 +13,22 @@
 #define MAX_VOL 100
 #define DEFAULT_VOL 80
 
-// Sound Files
-#define FILE_BASE "beatbox-wave-files/100051__menegass__gui-drum-bd-hard.wav"
-#define FILE_HIHAT "beatbox-wave-files/100054__menegass__gui-drum-ch.wav"
-#define FILE_SNARE "beatbox-wave-files/100059__menegass__gui-drum-snare-soft.wav"
+// Files
+#define FILE_BASE "beatbox-wav-files/100051__menegass__gui-drum-bd-hard.wav"
+#define FILE_HIHAT "beatbox-wav-files/100054__menegass__gui-drum-ch.wav"
+#define FILE_SNARE "beatbox-wav-files/100059__menegass__gui-drum-snare-soft.wav"
 
-// State
 static int bpm = DEFAULT_BPM;
 static int volume = DEFAULT_VOL;
-static int mode = 1; // 0=None, 1=Rock, 2=Custom
-static bool stopping = false;
+static int mode = 1; 
+static volatile bool stopping = false; // Controls the main application loop
 static pthread_t beatThreadId;
 static pthread_mutex_t beatMutex = PTHREAD_MUTEX_INITIALIZER;
 
-// Audio Data
 static wavedata_t baseDrum;
 static wavedata_t hiHat;
 static wavedata_t snare;
 
-// Helper to play sound safely
 void Beatbox_playSound(int soundIndex) {
     switch (soundIndex) {
         case 0: AudioMixer_queueSound(&baseDrum); break;
@@ -40,33 +37,29 @@ void Beatbox_playSound(int soundIndex) {
     }
 }
 
-// Thread function
 static void* beatThread(void* arg) {
-    (void)arg; // FIX: Silences -Werror=unused-parameter
-    
+    (void)arg;
     while (!stopping) {
-        int currentMode;
-        int currentBPM;
+        int currentMode, currentBPM;
         
         pthread_mutex_lock(&beatMutex);
         currentMode = mode;
         currentBPM = bpm;
         pthread_mutex_unlock(&beatMutex);
 
-        if (currentMode == 0) { // None
-            usleep(100000); // Sleep 100ms and check again
+        if (currentMode == 0) {
+            usleep(100000); 
             continue;
         }
 
-        // Calculate half-beat delay
         long delay_us = (60 * 1000 * 1000) / currentBPM / 2;
 
+        // 8 half-beats for standard rock
         for (int i = 0; i < 8 && !stopping; i++) {
-            // Check for updates mid-measure
             pthread_mutex_lock(&beatMutex);
             if (mode != currentMode) {
                 pthread_mutex_unlock(&beatMutex);
-                break; // Restart loop with new mode
+                break; 
             }
             currentBPM = bpm;
             delay_us = (60 * 1000 * 1000) / currentBPM / 2;
@@ -93,7 +86,6 @@ void Beatbox_init(void) {
     AudioMixer_readWaveFileIntoMemory(FILE_BASE, &baseDrum);
     AudioMixer_readWaveFileIntoMemory(FILE_HIHAT, &hiHat);
     AudioMixer_readWaveFileIntoMemory(FILE_SNARE, &snare);
-
     stopping = false;
     pthread_create(&beatThreadId, NULL, beatThread, NULL);
 }
@@ -106,10 +98,10 @@ void Beatbox_cleanup(void) {
     AudioMixer_freeWaveFileData(&snare);
 }
 
-// Getters/Setters...
 void Beatbox_setMode(int newMode) {
     pthread_mutex_lock(&beatMutex);
     mode = newMode;
+    // Mode 0=None, 1=Rock, 2=Custom. Cycle 0->1->2->0
     if (mode > 2) mode = 0; 
     pthread_mutex_unlock(&beatMutex);
 }
@@ -136,3 +128,7 @@ void Beatbox_setVolume(int newVol) {
 }
 int Beatbox_getVolume(void) { return volume; }
 void Beatbox_changeVolume(int amount) { Beatbox_setVolume(volume + amount); }
+
+// Shutdown Flags
+void Beatbox_markStopping(void) { stopping = true; }
+bool Beatbox_isStopping(void) { return stopping; }
