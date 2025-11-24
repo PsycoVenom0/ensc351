@@ -1,19 +1,27 @@
-#ifndef ENCODER_H
-#define ENCODER_H
+#pragma once
 
-#include <stdbool.h>
+/**
+ * encoder.h
+ *
+ * Rotary encoder interface.
+ * Reads A/B signals via GPIO (using libgpiod) and updates the
+ * LED flash frequency. All threading and GPIO details are hidden
+ * inside this module.
+ *
+ * The encoder starts at 10 Hz, increments/decrements frequency by 1 Hz
+ * per detent, and clamps between 0 and 500 Hz.
+ */
 
-// Initialize the encoder (configure GPIOs)
+typedef void (*EncoderFreqCB)(int newFreq);
+
+/* Initialize and start the encoder reading thread */
 void Encoder_init(void);
 
-// Cleanup GPIO resources
+/* Stop the encoder thread and release GPIO lines */
 void Encoder_cleanup(void);
 
-// Get the number of "ticks" since the last call.
-// Positive for clockwise, negative for counter-clockwise.
-int Encoder_getTickCount(void);
+/* Get the current frequency (Hz) */
+int Encoder_get_frequency(void);
 
-// Check if the button is currently pressed (Active Low logic handled internally)
-bool Encoder_isPressed(void);
-
-#endif
+/* Register an optional callback called on frequency change */
+void Encoder_set_callback(EncoderFreqCB cb);
