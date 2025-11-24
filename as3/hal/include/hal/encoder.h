@@ -3,16 +3,16 @@
 /**
  * encoder.h
  *
- * Rotary encoder interface.
- * Reads A/B signals via GPIO (using libgpiod) and updates the
- * LED flash frequency. All threading and GPIO details are hidden
- * inside this module.
- *
- * The encoder starts at 10 Hz, increments/decrements frequency by 1 Hz
- * per detent, and clamps between 0 and 500 Hz.
+ * Rotary encoder interface for Assignment 3.
+ * Reads A/B signals and push button via GPIO (using libgpiod).
+ * 
+ * - Spinning the encoder adjusts BPM (beats per minute) by ±5
+ * - Pressing the button cycles through drum beat modes
+ * - BPM range: [40, 300] (default 120 BPM)
  */
 
-typedef void (*EncoderFreqCB)(int newFreq);
+typedef void (*EncoderBPMCB)(int newBPM);
+typedef void (*EncoderButtonCB)(void);
 
 /* Initialize and start the encoder reading thread */
 void Encoder_init(void);
@@ -20,8 +20,12 @@ void Encoder_init(void);
 /* Stop the encoder thread and release GPIO lines */
 void Encoder_cleanup(void);
 
-/* Get the current frequency (Hz) */
-int Encoder_get_frequency(void);
+/* Get the current BPM */
+int Encoder_get_BPM(void);
 
-/* Register an optional callback called on frequency change */
-void Encoder_set_callback(EncoderFreqCB cb);
+/* Set the current BPM (clamped to [40, 300]) */
+void Encoder_set_BPM(int bpm);
+
+/* Register optional callbacks */
+void Encoder_set_BPM_callback(EncoderBPMCB cb);
+void Encoder_set_button_callback(EncoderButtonCB cb);
