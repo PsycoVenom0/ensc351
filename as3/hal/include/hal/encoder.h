@@ -1,16 +1,5 @@
 #pragma once
 
-/**
- * encoder.h
- *
- * Rotary encoder interface for Assignment 3.
- * Reads A/B signals and push button via GPIO (using libgpiod).
- * 
- * - Spinning the encoder adjusts BPM (beats per minute) by ±5
- * - Pressing the button cycles through drum beat modes
- * - BPM range: [40, 300] (default 120 BPM)
- */
-
 typedef void (*EncoderBPMCB)(int newBPM);
 typedef void (*EncoderButtonCB)(void);
 

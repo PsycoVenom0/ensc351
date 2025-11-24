@@ -22,9 +22,6 @@ JoystickDirection Joystick_read(void) {
     
     if (y == -1) return JS_NONE;
 
-    // "Up" on the stick usually reads as 0 (Low Voltage) or 4095 (High)
-    // depending on orientation. 
-    // Assumption: Low Voltage (0) is UP. Swap returns if inverted.
     if (y < LOWER_LIMIT) return JS_DOWN;   
     if (y > UPPER_LIMIT) return JS_UP; 
     

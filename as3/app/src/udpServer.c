@@ -66,7 +66,6 @@ static void* udpThread(void* arg) {
             
             // PLAY
             else if (strncmp(buffer, "play", 4) == 0) {
-                // "play" always comes with a number from the UI, but safety check anyway
                 if (strlen(buffer) > 5 && isdigit(buffer[5])) {
                     int sound = atoi(buffer + 5);
                     Beatbox_playSound(sound);
@@ -77,7 +76,7 @@ static void* udpThread(void* arg) {
             // STOP
             else if (strncmp(buffer, "stop", 4) == 0) {
                 strcpy(reply, "stopping");
-                Beatbox_markStopping(); // Trigger graceful shutdown
+                Beatbox_markStopping();
             }
 
             sendto(sockfd, reply, strlen(reply), 0, (struct sockaddr *)&cliaddr, len);

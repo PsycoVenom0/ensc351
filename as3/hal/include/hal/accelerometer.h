@@ -1,8 +1,6 @@
 #ifndef ACCELEROMETER_H_
 #define ACCELEROMETER_H_
 
-// NOTE: ADC_init() must be called before using these functions!
-
 // Initialize accelerometer logic (no hardware init needed, relies on ADC)
 void Accel_init(void);
 

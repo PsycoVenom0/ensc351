@@ -22,7 +22,6 @@ void Beatbox_changeVolume(int amount);
 
 void Beatbox_playSound(int soundIndex);
 
-// Graceful Shutdown
 void Beatbox_markStopping(void);
 bool Beatbox_isStopping(void);
 

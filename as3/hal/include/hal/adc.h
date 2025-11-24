@@ -8,7 +8,6 @@ void ADC_init(void);
 void ADC_cleanup(void);
 
 // Read raw 12-bit value (0-4095) from specific channel (0-7)
-// Returns -1 on error
 int ADC_read_raw(int channel);
 
 #endif
