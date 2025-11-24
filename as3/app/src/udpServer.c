@@ -1,185 +1,93 @@
-#define _POSIX_C_SOURCE 200809L
 #include "udpServer.h"
-#include "light_sampler.h"
-#include "dipAnalyzer.h"
-
+#include "beatbox.h"
 #include <pthread.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
 #include <arpa/inet.h>
-#include <unistd.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
-#define UDP_PORT 12345
-#define MAX_MSG 1024
+#define PORT 12345
+#define MAX_LEN 1024
 
-static pthread_t server_thread;
-// FIX: Initialize to 1 to prevent race condition with main thread
-static int running = 1;
-static int sock_fd = -1;
-static char last_cmd[128] = ""; // For <enter> repeat command
+static pthread_t udpThreadId;
+static int sockfd;
+static struct sockaddr_in servaddr, cliaddr;
+static int running = 0;
 
-// Sends a text message back to the client
-static void send_text(struct sockaddr_in *client, const char *msg)
-{
-    sendto(sock_fd, msg, strlen(msg), 0, (struct sockaddr *)client, sizeof(*client));
-}
+static void* udpThread(void* arg) {
+    char buffer[MAX_LEN];
+    socklen_t len = sizeof(cliaddr);
 
-// Handles the 'history' command
-static void handle_history(struct sockaddr_in *client)
-{
-    int count = 0;
-    double *data = LightSampler_getHistory(&count);
-    if (!data || count == 0) {
-        send_text(client, "History empty.\n");
-        free(data);
-        return;
-    }
-
-    char buffer[MAX_MSG];
-    buffer[0] = '\0';
-    for (int i = 0; i < count; i++) {
-        char entry[32];
-        snprintf(entry, sizeof(entry), "%.3f", data[i]);
-
-        // Format with comma, add newline every 10
-        if (i % 10 != 9 && i != count - 1) { 
-            strcat(entry, ", "); // Comma separator
-        } else {
-            strcat(entry, "\n"); // 10 items per line
-        }
-
-        // Send buffer if full to avoid oversized packets
-        if (strlen(buffer) + strlen(entry) >= sizeof(buffer) - 1) {
-            send_text(client, buffer);
-            buffer[0] = '\0';
-        }
-        strcat(buffer, entry);
-    }
-    
-    // Send any remaining data
-    if (strlen(buffer) > 0)
-        send_text(client, buffer);
-
-    free(data);
-}
-
-// The main UDP server thread function
-static void *server_func(void *arg)
-{
-    (void)arg;
-    struct sockaddr_in servaddr = {0}, client = {0};
-    socklen_t client_len = sizeof(client);
-
-    sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
-    servaddr.sin_family = AF_INET;
-    servaddr.sin_addr.s_addr = INADDR_ANY;
-    servaddr.sin_port = htons(UDP_PORT);
-
-    // Bind socket
-    if (bind(sock_fd, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) {
-        perror("UDP bind");
-        running = 0; // Tell main loop to stop
-        return NULL;
-    }
-
-    char msg[MAX_MSG];
-
-    // Main command loop
     while (running) {
-        ssize_t n = recvfrom(sock_fd, msg, sizeof(msg) - 1, 0, (struct sockaddr *)&client, &client_len);
-        if (n <= 0) continue;
+        int n = recvfrom(sockfd, buffer, MAX_LEN, 0, (struct sockaddr *)&cliaddr, &len);
+        if (n > 0) {
+            buffer[n] = '\0';
+            char reply[MAX_LEN] = "Unknown command";
 
-        msg[n] = '\0';
-        char *cmd = msg;
-        while (*cmd == ' ' || *cmd == '\n' || *cmd == '\r') cmd++; // Skip whitespace
-
-        // Handle <enter> to repeat last command
-        if (*cmd == '\0') {
-            if (strlen(last_cmd) == 0) {
-                send_text(&client, "Unknown command.\n");
-                continue;
+            // Parse Command
+            if (strncmp(buffer, "mode", 4) == 0) {
+                if (strlen(buffer) > 5) { // Set mode
+                    int val = atoi(buffer + 5);
+                    Beatbox_setMode(val);
+                }
+                sprintf(reply, "mode %d", Beatbox_getMode());
+            } 
+            else if (strncmp(buffer, "volume", 6) == 0) {
+                if (strlen(buffer) > 7) {
+                    int val = atoi(buffer + 7);
+                    Beatbox_setVolume(val);
+                }
+                sprintf(reply, "volume %d", Beatbox_getVolume());
             }
-            cmd = last_cmd;
-        } else {
-            // Trim trailing newline
-            char *newline = strrchr(cmd, '\n');
-            if (newline) *newline = '\0';
-            newline = strrchr(cmd, '\r');
-            if (newline) *newline = '\0';
-            
-            strncpy(last_cmd, cmd, sizeof(last_cmd) - 1);
-        }
+            else if (strncmp(buffer, "tempo", 5) == 0) {
+                if (strlen(buffer) > 6) {
+                    int val = atoi(buffer + 6);
+                    Beatbox_setBPM(val);
+                }
+                sprintf(reply, "tempo %d", Beatbox_getBPM());
+            }
+            else if (strncmp(buffer, "play", 4) == 0) {
+                int sound = atoi(buffer + 5);
+                Beatbox_playSound(sound);
+                strcpy(reply, "played");
+            }
+            else if (strncmp(buffer, "stop", 4) == 0) {
+                strcpy(reply, "stopping");
+                // Ideally signal main to exit, but for now just reply
+            }
 
-        // Make lowercase
-        for (char *p = cmd; *p; p++)
-            if (*p >= 'A' && *p <= 'Z')
-                *p = *p - 'A' + 'a';
-
-        // --- Command Handling ---
-        if (strncmp(cmd, "help", 4) == 0 || strcmp(cmd, "?") == 0) {
-            send_text(&client,
-                "Commands:\n"
-                "help, ?, count, length, dips, history, stop, <enter>\n");
-        }
-        else if (strncmp(cmd, "count", 5) == 0) {
-            char out[64];
-            snprintf(out, sizeof(out), "Total samples: %lld\n", LightSampler_getTotalSamples());
-            send_text(&client, out);
-        }
-        else if (strncmp(cmd, "length", 6) == 0) {
-            char out[64];
-            snprintf(out, sizeof(out), "Samples last second: %d\n", LightSampler_getNumIntervals());
-            send_text(&client, out);
-        }
-        else if (strncmp(cmd, "dips", 4) == 0) {
-            int n = 0;
-            double *data = LightSampler_getHistory(&n);
-            double avg = LightSampler_getAverage();
-            int dips = DipAnalyzer_countDips(data, n, avg);
-            free(data);
-            char out[64];
-            snprintf(out, sizeof(out), "Dips: %d\n", dips);
-            send_text(&client, out);
-        }
-        else if (strncmp(cmd, "history", 7) == 0) {
-            handle_history(&client);
-        }
-        else if (strncmp(cmd, "stop", 4) == 0) {
-            send_text(&client, "Stopping program.\n");
-            running = 0; // Signal main loop and this loop to stop
-        }
-        else {
-            send_text(&client, "Unknown command.\n");
+            sendto(sockfd, reply, strlen(reply), 0, (struct sockaddr *)&cliaddr, len);
         }
     }
-
-    close(sock_fd);
-    sock_fd = -1;
     return NULL;
 }
 
-void UDPServer_init(void)
-{
-    pthread_create(&server_thread, NULL, server_func, NULL);
-}
-
-void UDPServer_cleanup(void)
-{
-    running = 0;
-    if (sock_fd >= 0) {
-        // Send dummy packet to loopback to unblock recvfrom()
-        struct sockaddr_in self = {0};
-        self.sin_family = AF_INET;
-        self.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-        self.sin_port = htons(UDP_PORT);
-        sendto(sock_fd, "\n", 1, 0, (struct sockaddr *)&self, sizeof(self));
+void UDP_init(void) {
+    if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        perror("socket creation failed");
+        exit(EXIT_FAILURE);
     }
-    pthread_join(server_thread, NULL);
+
+    memset(&servaddr, 0, sizeof(servaddr));
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_addr.s_addr = INADDR_ANY;
+    servaddr.sin_port = htons(PORT);
+
+    if (bind(sockfd, (const struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) {
+        perror("bind failed");
+        exit(EXIT_FAILURE);
+    }
+
+    running = 1;
+    pthread_create(&udpThreadId, NULL, udpThread, NULL);
 }
 
-int UDPServer_isRunning(void)
-{
-    return running;
+void UDP_cleanup(void) {
+    running = 0;
+    pthread_cancel(udpThreadId);
+    pthread_join(udpThreadId, NULL);
+    close(sockfd);
 }
