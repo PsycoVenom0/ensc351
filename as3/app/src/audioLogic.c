@@ -1,4 +1,4 @@
-#include "audioLogic.h"
+#include "audioLogic.h" 
 #include "audioMixer.h"
 #include <pthread.h>
 #include <stdio.h>
@@ -42,6 +42,8 @@ void Beatbox_playSound(int soundIndex) {
 
 // Thread function
 static void* beatThread(void* arg) {
+    (void)arg; // FIX: Silences -Werror=unused-parameter
+    
     while (!stopping) {
         int currentMode;
         int currentBPM;
@@ -57,23 +59,10 @@ static void* beatThread(void* arg) {
         }
 
         // Calculate half-beat delay
-        // 60 sec/min / BPM / 2 = seconds per half-beat
         long delay_us = (60 * 1000 * 1000) / currentBPM / 2;
 
-        // Rock Beat Pattern (8 half-beats)
-        // 1: Hi-Hat, Base
-        // 1.5: Hi-Hat
-        // 2: Hi-Hat, Snare
-        // 2.5: Hi-Hat
-        // 3: Hi-Hat, Base
-        // 3.5: Hi-Hat
-        // 4: Hi-Hat, Snare
-        // 4.5: Hi-Hat
-        
-        // Custom Beat (Double Time Snare)
-        
         for (int i = 0; i < 8 && !stopping; i++) {
-            // Check if mode changed mid-loop
+            // Check for updates mid-measure
             pthread_mutex_lock(&beatMutex);
             if (mode != currentMode) {
                 pthread_mutex_unlock(&beatMutex);
@@ -89,7 +78,6 @@ static void* beatThread(void* arg) {
                 if(i==2 || i==6) AudioMixer_queueSound(&snare);
             } 
             else if (currentMode == 2) { // Custom
-                // Example: Base on 1, Snare on 2, 3, 4
                 if (i==0) AudioMixer_queueSound(&baseDrum);
                 if (i==2 || i==4 || i==6) AudioMixer_queueSound(&snare);
                 if (i % 2 != 0) AudioMixer_queueSound(&hiHat);
@@ -118,11 +106,11 @@ void Beatbox_cleanup(void) {
     AudioMixer_freeWaveFileData(&snare);
 }
 
-// Getters/Setters
+// Getters/Setters...
 void Beatbox_setMode(int newMode) {
     pthread_mutex_lock(&beatMutex);
     mode = newMode;
-    if (mode > 2) mode = 0; // Cycle: 0 -> 1 -> 2 -> 0
+    if (mode > 2) mode = 0; 
     pthread_mutex_unlock(&beatMutex);
 }
 int Beatbox_getMode(void) { return mode; }

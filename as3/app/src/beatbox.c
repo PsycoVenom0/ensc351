@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include "audioMixer.h"
 #include "audioLogic.h"
 #include "udpServer.h"
@@ -15,7 +16,7 @@ int main(void) {
     // 1. Initialize Hardware & Modules
     ADC_init();
     Joystick_init();
-    Accle_init(); // Typo fix in header: Accel_init()
+    Accel_init(); // FIX: Typo corrected (was Accle_init)
     Encoder_init();
     AudioMixer_init();
     Beatbox_init();
@@ -35,6 +36,7 @@ int main(void) {
         }
 
         // --- Encoder (Tempo & Mode) ---
+        // These functions are now visible because hal/encoder.h is included
         int ticks = Encoder_getTickCount();
         if (ticks != 0) {
             Beatbox_changeBPM(ticks * 5);
@@ -47,21 +49,20 @@ int main(void) {
         // --- Accelerometer (Air Drumming) ---
         int x, y, z;
         Accel_readXYZ(&x, &y, &z);
-        // Thresholds (Assuming ~2048 is center/1G)
-        // Need to calibrate these based on testing!
-        if (x > 2500 || x < 1500) {
-            Beatbox_playSound(1); // Snare on X shake
-            usleep(100000); // Debounce
+        
+        if (x > 2600 || x < 1500) {
+            Beatbox_playSound(1); // Snare
+            usleep(150000); // Debounce
         }
-        // Y/Z checks similar...
-
-        // --- Stats ---
-        // (Call Period_markEvent() in other files if needed)
+        if (z > 2600 || z < 1500) { 
+             Beatbox_playSound(0); // Base
+             usleep(150000);
+        }
         
         usleep(10000); // 10ms poll rate
     }
 
-    // 3. Cleanup (Unreachable in infinite loop, but good practice)
+    // 3. Cleanup
     UDP_cleanup();
     Beatbox_cleanup();
     AudioMixer_cleanup();
