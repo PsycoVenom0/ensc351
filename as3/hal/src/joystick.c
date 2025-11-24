@@ -8,7 +8,7 @@
 
 // Joystick Thresholds (0-4095)
 #define CENTER 2048
-#define DEADZONE 1000 
+#define DEADZONE 1500 
 #define UPPER_LIMIT (CENTER + DEADZONE)
 #define LOWER_LIMIT (CENTER - DEADZONE)
 
@@ -25,8 +25,8 @@ JoystickDirection Joystick_read(void) {
     // "Up" on the stick usually reads as 0 (Low Voltage) or 4095 (High)
     // depending on orientation. 
     // Assumption: Low Voltage (0) is UP. Swap returns if inverted.
-    if (y < LOWER_LIMIT) return JS_UP;   
-    if (y > UPPER_LIMIT) return JS_DOWN; 
+    if (y < LOWER_LIMIT) return JS_DOWN;   
+    if (y > UPPER_LIMIT) return JS_UP; 
     
     return JS_NONE;
 }

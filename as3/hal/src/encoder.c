@@ -6,11 +6,7 @@
 #include <gpiod.h>
 #include <errno.h>
 
-// Hardware configuration for your wiring:
-// Channel A: GPIO17 = Line 8 on chip 2
-// Channel B: GPIO27 = Line 33 on chip 1
-// Button: GPIO22 = Line 41 on chip 1
-
+// Hardware configuration
 #define ENCODER_CHIP_A "/dev/gpiochip2"
 #define ENCODER_LINE_A 8
 
@@ -165,11 +161,14 @@ static void *encoder_thread(void *arg) {
             }
 
             pthread_mutex_lock(&lock);
-            // Quadrature logic: b=0 increases, b=1 decreases
-            if (b == 0 && bpm < BPM_MAX) {
+            
+            // FIX: Reversed Logic
+            // If B is 1 (High) -> Increase
+            // If B is 0 (Low)  -> Decrease
+            if (b == 1 && bpm < BPM_MAX) {
                 bpm += BPM_STEP;
                 if (bpm > BPM_MAX) bpm = BPM_MAX;
-            } else if (b == 1 && bpm > BPM_MIN) {
+            } else if (b == 0 && bpm > BPM_MIN) {
                 bpm -= BPM_STEP;
                 if (bpm < BPM_MIN) bpm = BPM_MIN;
             }
