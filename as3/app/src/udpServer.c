@@ -1,5 +1,5 @@
 #include "udpServer.h"
-#include "beatbox.h"
+#include "audioLogic.h"
 #include <pthread.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
