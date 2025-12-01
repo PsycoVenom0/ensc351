@@ -1,6 +1,0 @@
-{
-    "C_Cpp.codeAnalysis.clangTidy.enabled": true,
-    "files.associations": {
-        "light_sampler.h": "c"
-    }
-}
