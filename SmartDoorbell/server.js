@@ -11,7 +11,7 @@ const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/144490963464015465
 const ESP32_CAPTURE_URL = 'http://192.168.4.1/still'; 
 
 const UDP_SERVER_PORT = 7070;
-const UDP_SERVER_ADDRESS = '0.0.0.0'; 
+const UDP_SERVER_ADDRESS = '127.0.0.1'; 
 
 // --- DISCORD FUNCTION WITH IMAGE ---
 const sendDiscordAlert = async (message) => {
