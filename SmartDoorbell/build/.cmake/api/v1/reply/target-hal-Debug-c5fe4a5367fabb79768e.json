@@ -1,8 +1,9 @@
 {
+	"archive" : {},
 	"artifacts" : 
 	[
 		{
-			"path" : "app/smart_doorbell"
+			"path" : "hal/libhal.a"
 		}
 	],
 	"backtrace" : 1,
@@ -10,15 +11,14 @@
 	{
 		"commands" : 
 		[
-			"add_executable",
-			"add_link_options",
-			"target_link_libraries",
+			"add_library",
 			"add_compile_options",
-			"include_directories"
+			"include_directories",
+			"target_include_directories"
 		],
 		"files" : 
 		[
-			"app/CMakeLists.txt",
+			"hal/CMakeLists.txt",
 			"CMakeLists.txt"
 		],
 		"nodes" : 
@@ -29,7 +29,7 @@
 			{
 				"command" : 0,
 				"file" : 0,
-				"line" : 5,
+				"line" : 8,
 				"parent" : 0
 			},
 			{
@@ -38,49 +38,37 @@
 			{
 				"command" : 1,
 				"file" : 1,
-				"line" : 13,
+				"line" : 7,
 				"parent" : 2
 			},
 			{
 				"command" : 1,
 				"file" : 1,
-				"line" : 17,
-				"parent" : 2
-			},
-			{
-				"command" : 2,
-				"file" : 0,
-				"line" : 8,
-				"parent" : 0
-			},
-			{
-				"command" : 3,
-				"file" : 1,
-				"line" : 7,
-				"parent" : 2
-			},
-			{
-				"command" : 3,
-				"file" : 1,
 				"line" : 8,
 				"parent" : 2
 			},
 			{
-				"command" : 3,
+				"command" : 1,
 				"file" : 1,
 				"line" : 12,
 				"parent" : 2
 			},
 			{
-				"command" : 3,
+				"command" : 1,
 				"file" : 1,
 				"line" : 16,
 				"parent" : 2
 			},
 			{
-				"command" : 4,
+				"command" : 2,
 				"file" : 0,
-				"line" : 3,
+				"line" : 5,
+				"parent" : 0
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 10,
 				"parent" : 0
 			}
 		]
@@ -94,42 +82,42 @@
 					"fragment" : "-g -std=gnu11"
 				},
 				{
-					"backtrace" : 6,
+					"backtrace" : 3,
 					"fragment" : "-Wall"
 				},
 				{
-					"backtrace" : 6,
+					"backtrace" : 3,
 					"fragment" : "-Werror"
 				},
 				{
-					"backtrace" : 6,
+					"backtrace" : 3,
 					"fragment" : "-Wpedantic"
 				},
 				{
-					"backtrace" : 6,
+					"backtrace" : 3,
 					"fragment" : "-Wextra"
 				},
 				{
-					"backtrace" : 7,
+					"backtrace" : 4,
 					"fragment" : "-fdiagnostics-color"
 				},
 				{
-					"backtrace" : 8,
+					"backtrace" : 5,
 					"fragment" : "-fsanitize=address"
 				},
 				{
-					"backtrace" : 9,
+					"backtrace" : 6,
 					"fragment" : "-pthread"
 				}
 			],
 			"includes" : 
 			[
 				{
-					"backtrace" : 10,
-					"path" : "/home/palash/ensc351/work/ensc351/SmartDoorbell/app/include"
+					"backtrace" : 7,
+					"path" : "/home/palash/ensc351/work/ensc351/SmartDoorbell/hal/hal/include"
 				},
 				{
-					"backtrace" : 5,
+					"backtrace" : 8,
 					"path" : "/home/palash/ensc351/work/ensc351/SmartDoorbell/hal/include"
 				}
 			],
@@ -146,59 +134,18 @@
 			[
 				0,
 				1,
-				2
+				2,
+				3
 			]
 		}
 	],
-	"dependencies" : 
-	[
-		{
-			"backtrace" : 5,
-			"id" : "hal::@ad971efe0e95b39e260f"
-		}
-	],
-	"id" : "smart_doorbell::@5f5a17c01335469806cb",
-	"link" : 
-	{
-		"commandFragments" : 
-		[
-			{
-				"fragment" : "-g",
-				"role" : "flags"
-			},
-			{
-				"fragment" : "",
-				"role" : "flags"
-			},
-			{
-				"backtrace" : 3,
-				"fragment" : "-fsanitize=address",
-				"role" : "flags"
-			},
-			{
-				"backtrace" : 4,
-				"fragment" : "-pthread",
-				"role" : "flags"
-			},
-			{
-				"backtrace" : 5,
-				"fragment" : "../hal/libhal.a",
-				"role" : "libraries"
-			},
-			{
-				"backtrace" : 5,
-				"fragment" : "-ljpeg",
-				"role" : "libraries"
-			}
-		],
-		"language" : "C"
-	},
-	"name" : "smart_doorbell",
-	"nameOnDisk" : "smart_doorbell",
+	"id" : "hal::@ad971efe0e95b39e260f",
+	"name" : "hal",
+	"nameOnDisk" : "libhal.a",
 	"paths" : 
 	{
-		"build" : "app",
-		"source" : "app"
+		"build" : "hal",
+		"source" : "hal"
 	},
 	"sourceGroups" : 
 	[
@@ -208,7 +155,8 @@
 			[
 				0,
 				1,
-				2
+				2,
+				3
 			]
 		}
 	],
@@ -217,21 +165,27 @@
 		{
 			"backtrace" : 1,
 			"compileGroupIndex" : 0,
-			"path" : "app/src/camera.c",
+			"path" : "hal/src/encoder.c",
 			"sourceGroupIndex" : 0
 		},
 		{
 			"backtrace" : 1,
 			"compileGroupIndex" : 0,
-			"path" : "app/src/smart_doorbell.c",
+			"path" : "hal/src/joystick.c",
 			"sourceGroupIndex" : 0
 		},
 		{
 			"backtrace" : 1,
 			"compileGroupIndex" : 0,
-			"path" : "app/src/udp_client.c",
+			"path" : "hal/src/led.c",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 1,
+			"compileGroupIndex" : 0,
+			"path" : "hal/src/spi_adc.c",
 			"sourceGroupIndex" : 0
 		}
 	],
-	"type" : "EXECUTABLE"
+	"type" : "STATIC_LIBRARY"
 }

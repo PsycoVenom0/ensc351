@@ -73,14 +73,14 @@
 				{
 					"directoryIndex" : 1,
 					"id" : "hal::@ad971efe0e95b39e260f",
-					"jsonFile" : "target-hal-Debug-12fadb80278b3dcbdbc5.json",
+					"jsonFile" : "target-hal-Debug-c5fe4a5367fabb79768e.json",
 					"name" : "hal",
 					"projectIndex" : 0
 				},
 				{
 					"directoryIndex" : 2,
 					"id" : "smart_doorbell::@5f5a17c01335469806cb",
-					"jsonFile" : "target-smart_doorbell-Debug-9cfb0f9b3c6946979a3c.json",
+					"jsonFile" : "target-smart_doorbell-Debug-2bf68abd2a0e10d5daf9.json",
 					"name" : "smart_doorbell",
 					"projectIndex" : 0
 				}

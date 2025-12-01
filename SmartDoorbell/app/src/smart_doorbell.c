@@ -3,14 +3,16 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <time.h>
+#include <stdlib.h>
 
 #include "hal/led.h"
 #include "hal/joystick.h"
+#include "sound.h"
 #include "camera.h"
 #include "udp_client.h"
 
 // --- CONFIG ---
-#define ESP32_IP "192.168.4.1" // Default AP IP
+#define ESP32_IP "192.168.4.1" 
 #define PIN_LENGTH 4
 static const joystick_dir_t SECRET_PIN[PIN_LENGTH] = { JOY_LEFT, JOY_LEFT, JOY_UP, JOY_DOWN };
 
@@ -26,36 +28,47 @@ int main(void) {
     hal_led_init();
     camera_init();
     udp_init();
+    sound_init(); // Initialize Sound
     
-    // Joystick on SPI0.0
+    // Joystick Init (Ensure /dev/spidevX.Y matches your BeagleY-AI SPI config)
     if (hal_joystick_init("/dev/spidev0.0", 250000) != 0) {
-        printf("Joystick Init Failed!\n");
-        return 1;
+        printf("Joystick Init Failed! (Continuing anyway...)\n");
     }
 
     joystick_dir_t input_buffer[PIN_LENGTH];
     int input_count = 0;
     long long last_motion_check = 0;
+    bool button_was_pressed = false;
 
-    printf("=== SMART DOORBELL SYSTEM STARTED ===\n");
+    printf("=== BEAGLEY-AI SMART DOORBELL STARTED ===\n");
     hal_led_red_on(); // System Locked
 
     while (1) {
-        // --- 1. JOYSTICK LOGIC (Polling) ---
+        // --- 1. DOORBELL BUTTON LOGIC ---
+        // Check if the Joystick SEL button is pressed
+        bool button_is_pressed = hal_joystick_is_pressed();
+        
+        if (button_is_pressed && !button_was_pressed) {
+            printf("[DOORBELL] Button Pressed! Ding Dong!\n");
+            sound_play_doorbell(); // Play sound in background
+            udp_send("Doorbell Button Pressed");
+        }
+        button_was_pressed = button_is_pressed;
+
+
+        // --- 2. PIN CODE LOGIC (Joystick Directions) ---
         joystick_dir_t dir = hal_joystick_read_direction();
         
         if (dir != JOY_NONE && dir != JOY_CENTER) {
-            // Button Pressed!
             printf("[INPUT] Direction: %d\n", dir);
             
             input_buffer[input_count++] = dir;
             
-            // Blink Green feedback
+            // Visual feedback (Blink Green)
             hal_led_red_off(); hal_led_green_on();
-            usleep(100000); // 100ms
+            usleep(100000); 
             hal_led_green_off(); hal_led_red_on();
 
-            // Wait for release (Debounce)
             hal_joystick_wait_until_released();
 
             if (input_count >= PIN_LENGTH) {
@@ -68,30 +81,36 @@ int main(void) {
                 if (correct) {
                     printf("[ACCESS] UNLOCKING DOOR\n");
                     udp_send("Door Unlocked by PIN");
+                    
                     hal_led_red_off(); hal_led_green_on();
+                    //sound_play_doorbell(); // Optional: sound on unlock
+                    
                     sleep(3); // Keep open
+                    
                     hal_led_green_off(); hal_led_red_on();
                 } else {
                     printf("[ACCESS] DENIED\n");
                     hal_led_flash_red_n_times(3, 500);
+                    // Optional: Play alarm on wrong PIN?
+                    // hal_sound_play_alarm(); 
                 }
                 input_count = 0; // Reset
             }
         }
 
-        // --- 2. MOTION LOGIC (Every 200ms) ---
+        // --- 3. MOTION LOGIC (Every 200ms) ---
         long long now = current_ms();
         if (now - last_motion_check > 200) {
-            
-            // Only check motion if no one is actively typing a PIN
+            // Only check motion if user isn't typing PIN
             if (input_count == 0) {
                 if (camera_capture(ESP32_IP) == 0) {
                     if (camera_check_motion()) {
                         printf("[MOTION] Movement detected!\n");
-                        // Trigger UDP -> Node.js -> Discord
                         udp_send("Motion Detected at Front Door");
                         
-                        // Wait a bit to avoid spamming Discord
+                        // FUTURE TAMPER LOGIC:
+                        // if (is_tampered) { hal_sound_play_alarm(); }
+                        
                         sleep(5); 
                     }
                 }
@@ -102,6 +121,8 @@ int main(void) {
         usleep(10000); // 10ms loop delay
     }
 
+    // Cleanup
+    sound_cleanup();
     hal_joystick_cleanup();
     hal_led_cleanup();
     udp_cleanup();
