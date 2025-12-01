@@ -7,11 +7,11 @@ void sound_init(void);
 // Clean up resources and stop thread
 void sound_cleanup(void);
 
-// Play the "dingdong.wav" file (non-blocking)
-void sound_play_doorbell(void);
-
-// Play the "alarm.wav" file (non-blocking)
-void sound_play_alarm(void);
+// --- Sound Effects ---
+void sound_play_doorbell(void);  // dingdong.wav
+void sound_play_alarm(void);     // alarm.wav
+void sound_play_correct(void);   // correct.wav
+void sound_play_incorrect(void); // incorrect.wav
 
 // Stop any currently playing sound
 void sound_stop(void);
