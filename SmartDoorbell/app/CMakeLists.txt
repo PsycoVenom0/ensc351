@@ -14,9 +14,16 @@ add_custom_command(TARGET smart_doorbell POST_BUILD
      "~/ensc351/public/myApps/smart_doorbell" 
   COMMENT "Copying ARM executable to public NFS directory")
 
-# Copy the 'server.js' folder to ~/ensc351/public/myApps/security-system/server.js
+# Copy the 'security-system' folder to ~/ensc351/public/myApps/security-system/
 add_custom_command(TARGET smart_doorbell POST_BUILD
   COMMAND "${CMAKE_COMMAND}" -E copy_directory
      "${CMAKE_SOURCE_DIR}/security-system"
      "$ENV{HOME}/ensc351/public/myApps/security-system"
+  COMMENT "Copying Wave files to public NFS directory")
+
+  # Copy the 'audio-files' folder to ~/ensc351/public/myApps/audio-files
+add_custom_command(TARGET smart_doorbell POST_BUILD
+  COMMAND "${CMAKE_COMMAND}" -E copy_directory
+     "${CMAKE_SOURCE_DIR}/audio-files"
+     "$ENV{HOME}/ensc351/public/myApps/audio-files"
   COMMENT "Copying Wave files to public NFS directory")
