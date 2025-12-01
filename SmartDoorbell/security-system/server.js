@@ -1,6 +1,7 @@
 const dgram = require('dgram');
 const axios = require('axios');
 const FormData = require('form-data');
+const fs = require('fs');
 
 // --- CONFIGURATION ---
 // const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1440872654952206497/Fu1Saq9C2B4zQVPHxPcbDMHsbWeee5cvLWW3Iy5nIXZyZr3qLRv_EC3geUjMqHGT-91K';
@@ -11,26 +12,45 @@ const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/144490963464015465
 const ESP32_CAPTURE_URL = 'http://192.168.4.1/still'; 
 
 const UDP_SERVER_PORT = 7070;
-const UDP_SERVER_ADDRESS = '0.0.0.0';
+const UDP_SERVER_ADDRESS = '127.0.0.1';
+
+// Path where the C app saves the image
+const LOCAL_IMAGE_PATH = '/tmp/visitor.jpg';
 
 // --- DISCORD FUNCTION WITH IMAGE ---
 const sendDiscordAlert = async (message) => {
     console.log(`🚨 Alert Received: "${message}". Fetching camera snapshot...`);
 
-    try {
-        // 1. Get the image from the ESP32-CAM
-        // We request a 'stream' so we can pipe it directly to Discord without saving it to a file first
-        const cameraResponse = await axios.get(ESP32_CAPTURE_URL, {
-            responseType: 'stream',
-            timeout: 2000 // 2 second timeout in case camera is offline
-        });
+    // try {
+    //     // 1. Get the image from the ESP32-CAM
+    //     // We request a 'stream' so we can pipe it directly to Discord without saving it to a file first
+    //     const cameraResponse = await axios.get(ESP32_CAPTURE_URL, {
+    //         responseType: 'stream',
+    //         timeout: 2000 // 2 second timeout in case camera is offline
+    //     });
 
-        // 2. Prepare the Form Data for Discord
+    //     // 2. Prepare the Form Data for Discord
+    //     const form = new FormData();
+        
+    //     // Attach the image stream as 'file'
+    //     form.append('file', cameraResponse.data, 'snapshot.jpg');
+
+    try {
+        // 1. Check if the file exists
+        if (!fs.existsSync(LOCAL_IMAGE_PATH)) {
+            console.error('❌ Snapshot file not found at ' + LOCAL_IMAGE_PATH);
+            sendTextOnlyFallback(message, "Snapshot file missing");
+            return;
+        }
+
+        // 2. Read the file from disk (The C app just saved it here)
+        const imageStream = fs.createReadStream(LOCAL_IMAGE_PATH);
+
+        // 3. Prepare the Form Data for Discord
         const form = new FormData();
         
-        // Attach the image stream as 'file'
-        form.append('file', cameraResponse.data, 'snapshot.jpg');
-
+        // Attach the file stream
+        form.append('file', imageStream, 'snapshot.jpg');
         // Attach the JSON payload (the text/embed part)
         const payload = {
             username: 'BeagleY Security',

@@ -5,7 +5,7 @@ file(GLOB MY_SOURCES "src/*.c")
 add_executable(smart_doorbell ${MY_SOURCES})
 
 # Make use of the HAL library
-target_link_libraries(smart_doorbell LINK_PRIVATE hal)
+target_link_libraries(smart_doorbell LINK_PRIVATE hal jpeg)
 
 # Copy executable to final location (change `hello_world` to project name as needed)
 add_custom_command(TARGET smart_doorbell POST_BUILD 

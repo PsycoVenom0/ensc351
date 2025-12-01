@@ -1,7 +1,7 @@
 #include "camera.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <libjpeg.h>
+#include <jpeglib.h>
 #include <string.h>
 #include <math.h>
 

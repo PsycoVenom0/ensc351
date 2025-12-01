@@ -184,6 +184,11 @@
 				"backtrace" : 5,
 				"fragment" : "../hal/libhal.a",
 				"role" : "libraries"
+			},
+			{
+				"backtrace" : 5,
+				"fragment" : "-ljpeg",
+				"role" : "libraries"
 			}
 		],
 		"language" : "C"
