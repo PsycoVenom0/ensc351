@@ -14,7 +14,7 @@ add_custom_command(TARGET smart_doorbell POST_BUILD
      "~/ensc351/public/myApps/smart_doorbell" 
   COMMENT "Copying ARM executable to public NFS directory")
 
-# Copy the 'server.js' folder to ~/ensc351/public/myApps/server.js
+# Copy the 'server.js' folder to ~/ensc351/public/myApps/security-system/server.js
 add_custom_command(TARGET smart_doorbell POST_BUILD
   COMMAND "${CMAKE_COMMAND}" -E copy_directory
      "${CMAKE_SOURCE_DIR}/security-system"
