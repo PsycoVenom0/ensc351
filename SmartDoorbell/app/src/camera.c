@@ -1,7 +1,7 @@
 #include "camera.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <jpeglib.h>
+#include <libjpeg.h>
 #include <string.h>
 #include <math.h>
 
@@ -46,7 +46,7 @@ void camera_init(void) { system("rm -f " IMG_PATH); }
 int camera_capture(const char* ip) {
     char cmd[256];
     // wget with 1s timeout to prevent blocking logic
-    snprintf(cmd, sizeof(cmd), "wget -q -O %s -T 1 http://%s/capture", IMG_PATH, ip);
+    snprintf(cmd, sizeof(cmd), "wget -q -O %s -T 1 http://%s/still", IMG_PATH, ip);
     return system(cmd);
 }
 
