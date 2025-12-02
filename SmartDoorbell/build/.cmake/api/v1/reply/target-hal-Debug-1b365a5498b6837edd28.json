@@ -50,12 +50,6 @@
 			{
 				"command" : 1,
 				"file" : 1,
-				"line" : 12,
-				"parent" : 2
-			},
-			{
-				"command" : 1,
-				"file" : 1,
 				"line" : 16,
 				"parent" : 2
 			},
@@ -103,21 +97,17 @@
 				},
 				{
 					"backtrace" : 5,
-					"fragment" : "-fsanitize=address"
-				},
-				{
-					"backtrace" : 6,
 					"fragment" : "-pthread"
 				}
 			],
 			"includes" : 
 			[
 				{
-					"backtrace" : 7,
+					"backtrace" : 6,
 					"path" : "/home/palash/ensc351/work/ensc351/SmartDoorbell/hal/hal/include"
 				},
 				{
-					"backtrace" : 8,
+					"backtrace" : 7,
 					"path" : "/home/palash/ensc351/work/ensc351/SmartDoorbell/hal/include"
 				}
 			],

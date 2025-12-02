@@ -1,38 +1,64 @@
+/**
+ * @file main.cpp
+ * @brief Entry point for the ESP32-CAM Smart Doorbell Firmware.
+ * * This firmware transforms the ESP32-CAM into a video streaming server.
+ * It connects to a configured Wi-Fi network and streams video upon request.
+ * The BeagleY-AI board consumes this stream to perform motion detection
+ * and capture images.
+ */
+
 #include <Arduino.h>
 #include "CameraModule.h"
 #include "NetworkModule.h"
 #include "WebStreamModule.h"
 
-// --- AP Settings ---
-const char* ap_ssid = "SmartDoorbell_AP"; 
-const char* ap_password = "doorbell_secure";
+// --- Wi-Fi Credentials ---
+// NOTE: These must match the hotspot created by your BeagleY-AI or your home router.
+const char* ssid = "MyBeagleNet";
+const char* password = "password123";
 
+// --- Module Instances ---
+CameraModule camera;
+NetworkModule network;
+WebStreamModule webStream;
+
+/**
+ * @brief Arduino Setup Function
+ * Runs once at startup. Initializes all subsystems.
+ */
 void setup() {
+  // 1. Initialize Serial Communication for debugging logs
   Serial.begin(115200);
-  delay(2000); 
-  Serial.println("\n--- Doorbell Camera (Direct AP Mode) ---");
+  Serial.setDebugOutput(true);
+  Serial.println();
 
-  if (Camera::init() == ESP_OK) {
-    Serial.println("Camera: OK");
-  } else {
-    Serial.println("Camera: FAILED - Check connections");
-    return; 
+  // 2. Initialize Camera
+  // Configures pins and starts the camera driver
+  if (!camera.init()) {
+    Serial.println("Camera Init Failed");
+    return; // Stop if camera fails
   }
 
-  // Start Access Point
-  Network::startAP(ap_ssid, ap_password);
-  
-  // Start Web Server
-  WebStream::startServer();
+  // 3. Connect to Wi-Fi
+  // Blocks until connection is successful
+  network.connect(ssid, password);
 
-  Serial.println("-----------------------------------");
-  Serial.print("Stream Ready at: http://");
-  Serial.println(Network::getIP());
-  Serial.println("Connect your BeagleY-AI to the WiFi network above.");
-  Serial.println("-----------------------------------");
+  // 4. Start the Web Server
+  // Begins listening on port 80 for stream requests
+  webStream.startServer();
+  
+  Serial.println("Smart Doorbell Camera Ready!");
+  Serial.print("Stream Link: http://");
+  Serial.print(WiFi.localIP());
+  Serial.println("/");
 }
 
+/**
+ * @brief Arduino Main Loop
+ * * Since the web server runs asynchronously (using ESP-IDF's httpd task),
+ * the main loop does not need to handle the streaming logic.
+ * We can add a small delay to prevent the watchdog from barking.
+ */
 void loop() {
-  WebStream::handleClient();
-  delay(2);
+  delay(10000); 
 }

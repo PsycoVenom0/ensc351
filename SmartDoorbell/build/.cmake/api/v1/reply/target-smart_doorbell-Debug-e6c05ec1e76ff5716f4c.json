@@ -38,12 +38,6 @@
 			{
 				"command" : 1,
 				"file" : 1,
-				"line" : 13,
-				"parent" : 2
-			},
-			{
-				"command" : 1,
-				"file" : 1,
 				"line" : 17,
 				"parent" : 2
 			},
@@ -63,12 +57,6 @@
 				"command" : 3,
 				"file" : 1,
 				"line" : 8,
-				"parent" : 2
-			},
-			{
-				"command" : 3,
-				"file" : 1,
-				"line" : 12,
 				"parent" : 2
 			},
 			{
@@ -94,42 +82,38 @@
 					"fragment" : "-g -std=gnu11"
 				},
 				{
-					"backtrace" : 6,
+					"backtrace" : 5,
 					"fragment" : "-Wall"
 				},
 				{
-					"backtrace" : 6,
+					"backtrace" : 5,
 					"fragment" : "-Werror"
 				},
 				{
-					"backtrace" : 6,
+					"backtrace" : 5,
 					"fragment" : "-Wpedantic"
 				},
 				{
-					"backtrace" : 6,
+					"backtrace" : 5,
 					"fragment" : "-Wextra"
 				},
 				{
-					"backtrace" : 7,
+					"backtrace" : 6,
 					"fragment" : "-fdiagnostics-color"
 				},
 				{
-					"backtrace" : 8,
-					"fragment" : "-fsanitize=address"
-				},
-				{
-					"backtrace" : 9,
+					"backtrace" : 7,
 					"fragment" : "-pthread"
 				}
 			],
 			"includes" : 
 			[
 				{
-					"backtrace" : 10,
+					"backtrace" : 8,
 					"path" : "/home/palash/ensc351/work/ensc351/SmartDoorbell/app/include"
 				},
 				{
-					"backtrace" : 5,
+					"backtrace" : 4,
 					"path" : "/home/palash/ensc351/work/ensc351/SmartDoorbell/hal/include"
 				}
 			],
@@ -154,7 +138,7 @@
 	"dependencies" : 
 	[
 		{
-			"backtrace" : 5,
+			"backtrace" : 4,
 			"id" : "hal::@ad971efe0e95b39e260f"
 		}
 	],
@@ -173,26 +157,21 @@
 			},
 			{
 				"backtrace" : 3,
-				"fragment" : "-fsanitize=address",
-				"role" : "flags"
-			},
-			{
-				"backtrace" : 4,
 				"fragment" : "-pthread",
 				"role" : "flags"
 			},
 			{
-				"backtrace" : 5,
+				"backtrace" : 4,
 				"fragment" : "../hal/libhal.a",
 				"role" : "libraries"
 			},
 			{
-				"backtrace" : 5,
+				"backtrace" : 4,
 				"fragment" : "-ljpeg",
 				"role" : "libraries"
 			},
 			{
-				"backtrace" : 5,
+				"backtrace" : 4,
 				"fragment" : "-lgpiod",
 				"role" : "libraries"
 			}
