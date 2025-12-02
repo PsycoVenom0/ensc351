@@ -23,7 +23,6 @@ static const joystick_dir_t SECRET_PIN[PIN_LENGTH] = { JOY_LEFT, JOY_LEFT, JOY_U
 #define TAMPER_THRESHOLD 500 
 
 // --- RFID CONFIG ---
-// Check your board's pinout (Pins 8 & 10 are often mapped to ttyS0)
 #define UART_DEVICE "/dev/ttyAMA0" 
 #define RFID_SECRET_KEY "5A5992"
 
@@ -178,7 +177,7 @@ int main(void) {
                     if (camera_check_motion()) {
                         printf("[MOTION] Movement detected!\n");
                         udp_send("Motion Detected at Front Door");
-                        sleep(2); 
+                        sleep(5); 
                     }
                 }
             }

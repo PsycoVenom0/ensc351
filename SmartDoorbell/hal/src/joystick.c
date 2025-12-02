@@ -88,9 +88,7 @@ int hal_joystick_init(const char *spi_device, uint32_t spi_speed_hz)
 
     // 2. Initialize GPIO for Button (SEL)
     if (configure_joystick_button() != 0) {
-        fprintf(stderr, "Failed to initialize Joystick Button on %s line %d\n", JOYSTICK_CHIP, JOYSTICK_LINE);
-        // We can choose to return -1 or continue with just stick functionality
-        // return -1; 
+        fprintf(stderr, "Failed to initialize Joystick Button on %s line %d\n", JOYSTICK_CHIP, JOYSTICK_LINE); 
     }
 
     // 3. Auto-calibration: joystick is at rest/center 

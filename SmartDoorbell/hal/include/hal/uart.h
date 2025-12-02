@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 
-// Initialize UART on the specified device (e.g., "/dev/ttyS0") at the given baud rate
+// Initialize UART on the specified device at the given baud rate
 // Returns 0 on success, -1 on failure
 int hal_uart_init(const char* device, int baud_rate);
 

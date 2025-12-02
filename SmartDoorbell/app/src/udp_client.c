@@ -5,7 +5,7 @@
 #include <unistd.h>
 
 #define SERVER_PORT 7070
-#define SERVER_IP "127.0.0.1" // JS Server is on the host
+#define SERVER_IP "127.0.0.1"
 
 static int sockfd = -1;
 static struct sockaddr_in server_addr;

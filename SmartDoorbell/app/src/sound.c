@@ -12,7 +12,6 @@
 #define ALARM_WAV     "audio-files/alarm.wav"
 #define CORRECT_WAV   "audio-files/correct.wav"
 #define INCORRECT_WAV "audio-files/incorrect.wav"
-// REMOVED INPUT_WAV
 
 #define APLAY_CMD "aplay -q"
 #define QUEUE_SIZE 16 
