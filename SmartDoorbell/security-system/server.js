@@ -144,8 +144,8 @@ server.on('message', (msg, rinfo) => {
  */
 server.on('listening', () => {
     const address = server.address();
-    console.log(`📡 Security System Listening on ${address.port}`);
-    console.log(`📷 Camera Target: ${ESP32_CAPTURE_URL}`);
+    console.log(`Security System Listening on ${address.port}`);
+    console.log(`Camera Target: ${ESP32_CAPTURE_URL}`);
 });
 
 // Bind to localhost port 7070

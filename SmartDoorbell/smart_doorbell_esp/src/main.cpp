@@ -25,11 +25,9 @@ void setup() {
   // Start Web Server
   WebStream::startServer();
 
-  Serial.println("-----------------------------------");
   Serial.print("Stream Ready at: http://");
   Serial.println(Network::getIP());
   Serial.println("Connect your BeagleY-AI to the WiFi network above.");
-  Serial.println("-----------------------------------");
 }
 
 void loop() {

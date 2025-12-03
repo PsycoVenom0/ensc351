@@ -20,7 +20,7 @@
 #define PIN_LENGTH 4
 static const joystick_dir_t SECRET_PIN[PIN_LENGTH] = { JOY_LEFT, JOY_LEFT, JOY_UP, JOY_DOWN };
 
-#define TAMPER_THRESHOLD 500 
+#define TAMPER_THRESHOLD 1000
 
 // --- RFID CONFIG ---
 #define UART_DEVICE "/dev/ttyAMA0" 

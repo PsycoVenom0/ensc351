@@ -156,7 +156,7 @@ joystick_dir_t hal_joystick_read_direction(void)
     if (hal_joystick_read_raw(&xv, &yv) != 0) return JOY_NONE;
 
     // Threshold
-    const int threshold = 1000; 
+    const int threshold = 1500; 
 
     int dx = xv - x_center;
     int dy = yv - y_center;
